@@ -1,0 +1,346 @@
+---
+swagger: "2.0"
+info:
+  description: "Receipt-Analyzer\nAll requests tested in Postman v5.3.1\n"
+  version: "1.0"
+  title: "Receipt-Analyzer"
+host: "proverkacheka.nalog.ru:9999"
+basePath: "/v1"
+schemes:
+- "https"
+consumes:
+- "application/json"
+produces:
+- "application/json"
+paths:
+  /mobile/users/login:
+    get:
+      tags:
+      - "FTS"
+      summary: "Login"
+      description: "Login request used to check if user exists"
+      operationId: "Login"
+      produces:
+      - "application/json"
+      parameters: []
+      responses:
+        200:
+          description: "JSON object"
+          schema:
+            $ref: "#/definitions/CorrectLoginResponse"
+        401:
+          description: "The resource requires the Basic authentication"
+        403:
+          description: "the user was not found or the specified password was not correct"
+      security:
+      - auth: []
+      x-swagger-router-controller: "FTS"
+  /mobile/users/signup:
+    post:
+      tags:
+      - "FTS"
+      summary: "Sign Up"
+      description: "Register new user and get SMS password\nIf user exists user won't\
+        \ be recreated\n"
+      operationId: "Sign Up"
+      produces:
+      - "application/json"
+      parameters:
+      - in: "body"
+        name: "Body"
+        description: "JSON object"
+        required: true
+        schema:
+          $ref: "#/definitions/SignUpRequest"
+      responses:
+        204:
+          description: "No Content (+SMS)"
+        400:
+          description: "[\"Missing required property: phone\"]\n[\"String is too long\
+            \ (35 chars), maximum 19\"]\n[\"String does not match pattern ^\\\\+\\\
+            \\d+$: ghg\"]\n[\"Object didn't pass validation for format email: tt\"\
+            ]\n"
+        409:
+          description: "user exists"
+      security: []
+      x-swagger-router-controller: "FTS"
+  /mobile/users/restore:
+    post:
+      tags:
+      - "FTS"
+      summary: "Restore password"
+      description: "Restore SMS password if forgotten or banned by FTS"
+      operationId: "Restore password"
+      produces:
+      - "application/json"
+      parameters:
+      - in: "body"
+        name: "Body"
+        description: ""
+        required: true
+        schema:
+          $ref: "#/definitions/RestorePasswordRequest"
+      responses:
+        204:
+          description: "No Content (+SMS)"
+        400:
+          description: "[\"Missing required property: phone\"]\n[\"String is too long\
+            \ (35 chars), maximum 19\"]\n[\"String does not match pattern ^\\\\+\\\
+            \\d+$: ghg\"]\n"
+        404:
+          description: "the user was not found"
+      security: []
+      x-swagger-router-controller: "FTS"
+  /inns/*/kkts/*/fss/{fn}/tickets/{fd}:
+    get:
+      tags:
+      - "FTS"
+      summary: "Receipt JSON"
+      description: "Get receipt JSON"
+      operationId: "Receipt JSON"
+      produces:
+      - "application/json"
+      parameters:
+      - name: "fiscalSign"
+        in: "query"
+        description: "ФП №"
+        required: true
+        type: "string"
+      - name: "sendToEmail"
+        in: "query"
+        description: "Send JSON to email (only no)"
+        required: true
+        type: "string"
+      - name: "Device-Id"
+        in: "header"
+        description: "Device ID with random generated UUID"
+        required: true
+        type: "string"
+      - name: "Device-OS"
+        in: "header"
+        description: "Device OS"
+        required: true
+        type: "string"
+      - name: "fn"
+        in: "path"
+        description: "ФН №"
+        required: true
+        type: "string"
+      - name: "fd"
+        in: "path"
+        description: "ФД №"
+        required: true
+        type: "string"
+      responses:
+        200:
+          description: "JSON object"
+        202:
+          description: "Accepted (no body)"
+        400:
+          description: "Device-Id header is missing\nDevice-OS header is missing\n\
+            unable to convert 3481c to int\n"
+        401:
+          description: "The resource requires the Basic authentication"
+        403:
+          description: "the user was not found or the specified password was not correct"
+        406:
+          description: "the ticket was not found"
+        500:
+          description: "connect ECONNREFUSED 127.0.0.1:465 (on sendToEmail=yes)"
+      security:
+      - auth: []
+      x-swagger-router-controller: "FTS"
+  /ofds/*/inns/*/fss/{fn}/operations/{n}/tickets/{fd}:
+    get:
+      tags:
+      - "FTS"
+      summary: "Receipt correctness"
+      description: "Check if receipt is correct\nNo response body\n"
+      operationId: "Receipt correctness"
+      produces:
+      - "application/json"
+      parameters:
+      - name: "fiscalSign"
+        in: "query"
+        description: "ФП №"
+        required: true
+        type: "string"
+      - name: "date"
+        in: "query"
+        description: "Date of birth of receipt (YYYY-MM-DDTHH:MM:SS)"
+        required: true
+        type: "string"
+      - name: "sum"
+        in: "query"
+        description: "Summary price (without comma)"
+        required: true
+        type: "string"
+      - name: "fn"
+        in: "path"
+        description: "ФН №"
+        required: true
+        type: "string"
+      - name: "n"
+        in: "path"
+        description: "Type of operation (1-4)"
+        required: true
+        type: "string"
+      - name: "fd"
+        in: "path"
+        description: "ФД №"
+        required: true
+        type: "string"
+      responses:
+        204:
+          description: "No Content"
+        406:
+          description: "Not Acceptable"
+        500:
+          description: "Unknown string format\nsecond must be in 0..59\nminute must\
+            \ be in 0..59\nhour must be in 0..23\nday is out of range for month\n\
+            month must be in 1..12\n"
+      security: []
+      x-swagger-router-controller: "FTS"
+  /extract:
+    get:
+      tags:
+      - "FTS"
+      summary: "Extract digest"
+      description: "Get link to all or ranged by time interval receipts \nGenerated\
+        \ link changes on new identical request\n"
+      operationId: "Extract digest"
+      produces:
+      - "application/json"
+      parameters:
+      - name: "sendToEmail"
+        in: "query"
+        description: "Send result to email (only 0)"
+        required: true
+        type: "integer"
+        format: "int32"
+      - name: "fileType"
+        in: "query"
+        description: "Type of result (json/pdf)"
+        required: true
+        type: "string"
+      - name: "dateFrom"
+        in: "query"
+        description: "Date of interval start (YYYY-MM-DDTHH:MM:SS)"
+        required: false
+        type: "string"
+      - name: "dateTo"
+        in: "query"
+        description: "Date of interval end (YYYY-MM-DDTHH:MM:SS)"
+        required: false
+        type: "string"
+      responses:
+        200:
+          description: "JSON object"
+          schema:
+            $ref: "#/definitions/DigestResponse"
+        400:
+          description: "[\"No enum match for: png\"]\nUnable to convert 2017-10-01T00:00:0k\
+            \ to date.\n"
+        401:
+          description: "The resource requires the Basic authentication"
+        403:
+          description: "the user was not found or the specified password was not correct"
+        500:
+          description: "connect ECONNREFUSED 127.0.0.1:465 (on sendToEmail=1)"
+      security:
+      - auth: []
+      x-swagger-router-controller: "FTS"
+  /download/{url}:
+    get:
+      tags:
+      - "FTS"
+      summary: "Extract digest from generated link example"
+      description: "Get digest content (json or pdf)"
+      operationId: "Extract digest from generated link example"
+      produces:
+      - "application/json"
+      parameters:
+      - name: "url"
+        in: "path"
+        description: ""
+        required: true
+        type: "string"
+      responses:
+        200:
+          description: "JSON/PDF file"
+        401:
+          description: "The resource requires the Basic authentication"
+        403:
+          description: "the user was not found or the specified password was not correct"
+        404:
+          description: "The specified file was not found."
+        500:
+          description: "'59ebd65ffc8edb384b4ff9800' is not a valid ObjectId, it must\
+            \ be a 12-byte input or a 24-character hex string"
+      security:
+      - auth: []
+      x-swagger-router-controller: "FTS"
+securityDefinitions:
+  auth:
+    type: "basic"
+    x-testValue: []
+definitions:
+  SignUpRequest:
+    type: "object"
+    required:
+    - "email"
+    - "name"
+    - "phone"
+    properties:
+      name:
+        type: "string"
+        description: "Name of user"
+      email:
+        type: "string"
+        description: "User email"
+      phone:
+        type: "string"
+        description: "Phone number"
+    title: "SignUpRequest"
+    example:
+      name: "John"
+      email: "John@doe.com"
+      phone: "+79202886016"
+  RestorePasswordRequest:
+    type: "object"
+    required:
+    - "phone"
+    properties:
+      phone:
+        type: "string"
+        description: "Phone number"
+    title: "RestorePasswordRequest"
+    example:
+      phone: "+79202886016"
+  CorrectLoginResponse:
+    type: "object"
+    required:
+    - "email"
+    - "name"
+    properties:
+      name:
+        type: "string"
+        description: "Name of user"
+      email:
+        type: "string"
+        description: "User email"
+    title: "CorrectLoginResponse"
+    example:
+      name: "John"
+      email: "John@doe.com"
+  DigestResponse:
+    type: "object"
+    required:
+    - "url"
+    properties:
+      url:
+        type: "string"
+        description: "URL to digest"
+    title: "DigestResponse"
+    example:
+      url: "/v1/download/59ec0232fc8edb3880abecf9.json"
